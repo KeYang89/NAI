@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+pydantic
+dotenv
+python-multipart
+sqlmodel
+aioredis
+redis
+python-dotenv

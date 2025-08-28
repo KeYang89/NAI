@@ -1,0 +1,9 @@
+{
+  "test": "Baseline sweep",
+  "description": "Trying different AoA & speeds",
+  "parameters": [
+    { "key": "angle_of_attack", "type": "float", "values": [0, 2.5, 5, 7.5, 10] },
+    { "key": "speed", "type": "float", "values": [20, 40, 60] },
+    { "key": "turbulence_model", "type": "enum", "values": ["k-epsilon", "k-omega"] }
+  ]
+}

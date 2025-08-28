@@ -1,0 +1,20 @@
+body {
+  margin: 0;
+  font-family: Roboto, Helvetica, Arial, sans-serif;
+  background-color: #fafafa;
+}
+
+pre {
+  background: #f4f4f4;
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+button {
+  cursor: pointer;
+}
+
+.MuiPaper-root {
+  margin-bottom: 16px;
+}

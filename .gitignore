@@ -1,0 +1,92 @@
+# ========================
+# General
+# ========================
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# ========================
+# Python Backend
+# ========================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+*.wheel
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+ENV/
+env.bak/
+venv.bak/
+
+# Pytest cache
+.pytest_cache/
+.coverage
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Mypy type checking
+.mypy_cache/
+.dmypy.json
+
+# C extensions
+*.so
+
+# ========================
+# React Frontend
+# ========================
+# Node modules
+node_modules/
+
+# Build output
+build/
+dist/
+*.tsbuildinfo
+
+# Debug / temporary
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE / editor folders
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ========================
+# Misc
+# ========================
+# Generated files
+*.bak
+*.tmp
+*.swp
+*.swo
+*.DS_Store
+
