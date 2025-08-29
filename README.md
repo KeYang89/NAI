@@ -1,6 +1,6 @@
 # Parameter‑Sweep Configurator App
 
-This app is a MVP that lets engineers define parameter sweeps—sets of CFD/FEA simulations to
+This app is an MVP that lets engineers define parameter sweeps—sets of CFD/FEA simulations to
 explore different input combinations. It creates, stores, plots, and previews the sweeps. 
 Parameters are used to represent properties of the geometry being analyzed, such as the span, 
 dihedral, and airfoil profile of a wing.
@@ -88,15 +88,24 @@ param-sweep-configurator/
 ```
 
 
-# Run Backend:
+# Preparation
 
 ```bash
 
-cd param-sweep-configurator-app/backend/
-python3 -m venv .venv
-source .venv/bin/activate #  or .venv\Scripts\activate on Windows
-pip3 install -r requirements.txt
-python3 -m app.run # it will get port from .env file or find a free port
+chmod +x run-backend.sh
+chmod +x run-frontend.sh
+chmod +x run-backend-tests.sh
+chmod +x run-frontend-tests.sh
+chmod +x run-tests.sh
+
+```
+
+# Run Backend
+
+
+```bash
+
+./run-backend.sh
 
 ```
 
@@ -110,29 +119,13 @@ If you prefer redoc:
 
 `http://0.0.0.0:53045/redoc`
 
-If you see CORS errors, install CORS support on backend:
 
-```bash
-
-pip install flask-cors
-
-```
-
-and add:
-
-```
-from flask_cors import CORS
-CORS(app)
-
-```
 
 # Run Frontend
 
 ```bash
 
-cd param-sweep-configurator-app/frontend/
-npm install
-npm run dev
+./run-frontend.sh
 
 ```
 React frontend runs at http://localhost:5173
@@ -143,29 +136,16 @@ React frontend runs at http://localhost:5173
 
 ```bash
 
-cd param-sweep-configurator-app/tests/
-
-
-# Install for backend
-cd /backend 
-pip3 install -r tests/requirements.txt
-
-
-# Install for frontend
-cd /frontend
-npm install
-npm install --save-dev @testing-library/react @testing-library/jest-dom @testing-library/user-event jest jest-environment-jsdom @types/jest
-
 # Run all tests
-chmod +x run-tests.sh
+
 ./run-tests.sh
 
 # Backend only
-chmod +x run-backend-tests.sh
+
 ./run-backend-tests.sh
 
 # Frontend only  
-chmod +x run-frontend-tests.sh
+
 ./run-frontend-tests.sh
 
 ```

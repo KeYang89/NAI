@@ -3,10 +3,12 @@ import { Box, Button, TextField, Paper, Typography, IconButton, MenuItem } from 
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import { SpecContext } from "../App";
-import { saveSpec } from "../utils/saveSpec";
-import { v4 as uuidv4 } from "uuid"; // npm install uuid
+import { v4 as uuidv4 } from "uuid";
+import { saveSpec, Spec } from "../utils/saveSpec";
+
 
 interface Parameter {
+  id: string; // unique per parameter
   key: string;
   type: "float" | "int" | "enum";
   values: any[];
@@ -17,100 +19,132 @@ export default function SpecForm() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [parameters, setParameters] = useState<Parameter[]>([]);
-  const [rawValues, setRawValues] = useState<string[]>([]);
-  const [errors, setErrors] = useState<string[]>([]); // track inline errors
-
-  // Sync rawValues when parameters change
-  useEffect(() => {
-    setRawValues(parameters.map((p) => p.values.join(",")));
-    setErrors(parameters.map(() => "")); // reset errors
-  }, [parameters]);
+  const [rawValues, setRawValues] = useState<{ [id: string]: string }>({});
+  const [errors, setErrors] = useState<{ [id: string]: string }>({});
+  const [useGenerator, setUseGenerator] = useState<{ [id: string]: boolean }>({});
+  const [genStart, setGenStart] = useState<{ [id: string]: string }>({});
+  const [genEnd, setGenEnd] = useState<{ [id: string]: string }>({});
+  const [genStep, setGenStep] = useState<{ [id: string]: string }>({});
 
   const addParameter = () => {
-    setParameters([...parameters, { key: "", type: "float", values: [] }]);
-    setRawValues([...rawValues, ""]);
-    setErrors([...errors, ""]);
+    const id = uuidv4();
+    setParameters([...parameters, { id, key: "", type: "float", values: [] }]);
+    setRawValues({ ...rawValues, [id]: "" });
+    setErrors({ ...errors, [id]: "" });
+    setUseGenerator({ ...useGenerator, [id]: false });
+    setGenStart({ ...genStart, [id]: "" });
+    setGenEnd({ ...genEnd, [id]: "" });
+    setGenStep({ ...genStep, [id]: "" });
   };
 
-  const removeParameter = (index: number) => {
-    setParameters(parameters.filter((_, i) => i !== index));
-    setRawValues(rawValues.filter((_, i) => i !== index));
-    setErrors(errors.filter((_, i) => i !== index));
+  const removeParameter = (id: string) => {
+    setParameters(parameters.filter((p) => p.id !== id));
+    const { [id]: _, ...restRaw } = rawValues;
+    const { [id]: __, ...restErr } = errors;
+    const { [id]: ___, ...restUseGen } = useGenerator;
+    const { [id]: ____, ...restStart } = genStart;
+    const { [id]: _____, ...restEnd } = genEnd;
+    const { [id]: ______, ...restStep } = genStep;
+    setRawValues(restRaw);
+    setErrors(restErr);
+    setUseGenerator(restUseGen);
+    setGenStart(restStart);
+    setGenEnd(restEnd);
+    setGenStep(restStep);
   };
 
-  const updateParameterField = (index: number, field: keyof Parameter, value: any) => {
-    const newParams = [...parameters];
-    newParams[index][field] = value;
-    setParameters(newParams);
+  const updateParameterField = (id: string, field: keyof Parameter, value: any) => {
+    setParameters((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, [field]: value } : p))
+    );
   };
 
-  const updateRawValue = (index: number, value: string) => {
-    const newRaw = [...rawValues];
-    newRaw[index] = value;
-    setRawValues(newRaw);
-
-    // reset error on change
-    const newErrors = [...errors];
-    newErrors[index] = "";
-    setErrors(newErrors);
+  const updateRawValue = (id: string, value: string) => {
+    setRawValues({ ...rawValues, [id]: value });
+    setErrors({ ...errors, [id]: "" });
   };
 
-  const commitValues = (index: number) => {
-    const raw = rawValues[index];
-    const type = parameters[index].type;
+  const commitValues = (id: string) => {
+    const raw = rawValues[id];
+    const param = parameters.find((p) => p.id === id);
+    if (!param) return;
+    const type = param.type;
     const parsed = raw.split(",").map((v) => v.trim());
 
-    const newErrors = [...errors];
     for (let v of parsed) {
-      if (type === "float") {
-        if (isNaN(parseFloat(v))) {
-          newErrors[index] = `Must be a float`;
-          setErrors(newErrors);
-          return; // do not commit invalid values
-        }
-      } else if (type === "int") {
-        if (!/^-?\d+$/.test(v)) {
-          newErrors[index] = `Must be an integer`;
-          setErrors(newErrors);
-          return;
-        }
+      if (type === "float" && isNaN(parseFloat(v))) {
+        setErrors({ ...errors, [id]: "Must be a float" });
+        return;
       }
-      // enums accept any string
-      // To-do: validate enum values against a predefined list so the user can only select allowed strings
+      if (type === "int" && !/^-?\d+$/.test(v)) {
+        setErrors({ ...errors, [id]: "Must be an integer" });
+        return;
+      }
     }
 
     const finalValues = parsed.map((v) =>
       type === "float" ? parseFloat(v) : type === "int" ? parseInt(v, 10) : v
     );
-
-    updateParameterField(index, "values", finalValues);
-    newErrors[index] = ""; // clear error if valid
-    setErrors(newErrors);
+    updateParameterField(id, "values", finalValues);
+    setErrors({ ...errors, [id]: "" });
   };
 
-  const handleSave = async () => {
-    // ensure all parameters are valid
-    for (let i = 0; i < parameters.length; i++) {
-      if (!parameters[i].values || parameters[i].values.length === 0) {
-        handleToast(`Parameter "${parameters[i].key}" has no values`, "error");
-        return;
-      }
-      if (errors[i]) {
-        handleToast(`Parameter "${parameters[i].key}" has invalid values`, "error");
-        return;
-      }
+  const generateList = (id: string) => {
+    const s = parseFloat(genStart[id]);
+    const e = parseFloat(genEnd[id]);
+    const st = parseFloat(genStep[id]);
+
+    if (isNaN(s) || isNaN(e) || isNaN(st) || st <= 0) {
+      handleToast("Invalid start/end/step", "error");
+      return;
     }
 
-    const newSpec = { id: uuidv4(), name, description, parameters };
-    
-    // Save JSON preview
-    setSpecJson(newSpec);
+    const list: number[] = [];
+    for (let v = s; v <= e + 1e-9; v += st) {
+      list.push(Math.round(v * 1e12) / 1e12);
+    }
 
-    // Clear previous plots and add the new spec
-    setLoadedConfigs([newSpec]);
-
-    handleToast("Config saved and plot updated", "success");
+    setRawValues({ ...rawValues, [id]: list.join(",") });
+    updateParameterField(id, "values", list);
+    setErrors({ ...errors, [id]: "" });
   };
+
+const handleSave = async () => {
+  // Check global fields first
+  if (!name.trim()) {
+    handleToast("Name is required", "error");
+    return;
+  }
+  if (!description.trim()) {
+    handleToast("Description is required", "error");
+    return;
+  }
+  if (parameters.length === 0) {
+    handleToast("At least one parameter is required", "error");
+    return;
+  }
+
+  // Check each parameter
+  for (const p of parameters) {
+    if (!p.values || p.values.length === 0) {
+      handleToast(`Parameter "${p.key}" has no values`, "error");
+      return;
+    }
+  }
+
+  // Prepare spec
+  const spec = { name, description, parameters };
+
+  // Save via backend utility
+  const saved = await saveSpec(spec, handleToast);
+
+  if (!saved) return; // saveSpec already shows toast on error
+
+  // Update local state/UI if save succeeded
+  setSpecJson(saved);
+  setLoadedConfigs([saved]);
+};
+
 
   return (
     <Paper sx={{ p: 2 }}>
@@ -136,43 +170,82 @@ export default function SpecForm() {
         <Typography variant="subtitle1" sx={{ mt: 2 }}>
           Parameters
         </Typography>
-        {parameters.map((p, i) => (
-          <Box key={i} sx={{ display: "flex", gap: 1, my: 1, alignItems: "center" }}>
-            <TextField
-              label="Key"
-              value={p.key}
-              onChange={(e) => updateParameterField(i, "key", e.target.value)}
-              sx={{ flex: 1 }}
-            />
-            <TextField
-              select
-              label="Type"
-              value={p.type}
-              onChange={(e) => updateParameterField(i, "type", e.target.value)}
-              sx={{ width: 120 }}
-            >
-              {["float", "int", "enum"].map((t) => (
-                <MenuItem key={t} value={t}>
-                  {t}
-                </MenuItem>
-              ))}
-            </TextField>
+        {parameters.map((p) => (
+          <Box key={p.id} sx={{ display: "flex", flexDirection: "column", gap: 1, my: 1 }}>
+            <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+              <TextField
+                label="Key"
+                value={p.key}
+                onChange={(e) => updateParameterField(p.id, "key", e.target.value)}
+                sx={{ flex: 1 }}
+              />
+              <TextField
+                select
+                label="Type"
+                value={p.type}
+                onChange={(e) => updateParameterField(p.id, "type", e.target.value)}
+                sx={{ width: 120 }}
+              >
+                {["float", "int", "enum"].map((t) => (
+                  <MenuItem key={t} value={t}>{t}</MenuItem>
+                ))}
+              </TextField>
 
-            <TextField
-              label="Values (comma-separated)"
-              value={rawValues[i] || ""}
-              onChange={(e) => updateRawValue(i, e.target.value)}
-              onBlur={() => commitValues(i)}
-              sx={{ flex: 2 }}
-              error={!!errors[i]}
-              helperText={errors[i] || ""}
-            />
+              <TextField
+                label="Values (comma-separated)"
+                value={rawValues[p.id] || ""}
+                onChange={(e) => updateRawValue(p.id, e.target.value)}
+                onBlur={() => commitValues(p.id)}
+                error={!!errors[p.id]}
+                helperText={errors[p.id] || ""}
+                sx={{ flex: 2 }}
+              />
 
-            <IconButton onClick={() => removeParameter(i)}>
-              <DeleteIcon />
-            </IconButton>
+              <IconButton
+                aria-label="toggle-generator"
+                onClick={() =>
+                  setUseGenerator({ ...useGenerator, [p.id]: !useGenerator[p.id] })
+                }
+              >
+                <AddIcon />
+              </IconButton>
+
+              <IconButton aria-label="delete-parameter" onClick={() => removeParameter(p.id)}>
+                <DeleteIcon />
+              </IconButton>
+            </Box>
+
+            {useGenerator[p.id] && (
+              <Box sx={{ display: "flex", gap: 1, mt: 1, width: "100%" }}>
+                <TextField
+                  label="Start"
+                  type="number"
+                  value={genStart[p.id] || ""}
+                  onChange={(e) => setGenStart({ ...genStart, [p.id]: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  label="End"
+                  type="number"
+                  value={genEnd[p.id] || ""}
+                  onChange={(e) => setGenEnd({ ...genEnd, [p.id]: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  label="Step"
+                  type="number"
+                  value={genStep[p.id] || ""}
+                  onChange={(e) => setGenStep({ ...genStep, [p.id]: e.target.value })}
+                  fullWidth
+                />
+                <Button variant="outlined" onClick={() => generateList(p.id)}>
+                  Gen
+                </Button>
+              </Box>
+            )}
           </Box>
         ))}
+
         <Button startIcon={<AddIcon />} onClick={addParameter} sx={{ mt: 1 }}>
           Add Parameter
         </Button>
