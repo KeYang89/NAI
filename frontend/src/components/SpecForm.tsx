@@ -1,11 +1,10 @@
-import { useState, useContext, useEffect } from "react";
+import { useState, useContext } from "react";
 import { Box, Button, TextField, Paper, Typography, IconButton, MenuItem } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import { SpecContext } from "../App";
 import { v4 as uuidv4 } from "uuid";
 import { saveSpec, Spec } from "../utils/saveSpec";
-
 
 interface Parameter {
   id: string; // unique per parameter
@@ -16,6 +15,7 @@ interface Parameter {
 
 export default function SpecForm() {
   const { specJson, setSpecJson, handleToast, loadedConfigs, setLoadedConfigs } = useContext(SpecContext);
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [parameters, setParameters] = useState<Parameter[]>([]);
@@ -25,6 +25,7 @@ export default function SpecForm() {
   const [genStart, setGenStart] = useState<{ [id: string]: string }>({});
   const [genEnd, setGenEnd] = useState<{ [id: string]: string }>({});
   const [genStep, setGenStep] = useState<{ [id: string]: string }>({});
+  const [genFunc, setGenFunc] = useState<{ [id: string]: string }>({}); // NEW for function
 
   const addParameter = () => {
     const id = uuidv4();
@@ -35,6 +36,7 @@ export default function SpecForm() {
     setGenStart({ ...genStart, [id]: "" });
     setGenEnd({ ...genEnd, [id]: "" });
     setGenStep({ ...genStep, [id]: "" });
+    setGenFunc({ ...genFunc, [id]: "" });
   };
 
   const removeParameter = (id: string) => {
@@ -45,12 +47,14 @@ export default function SpecForm() {
     const { [id]: ____, ...restStart } = genStart;
     const { [id]: _____, ...restEnd } = genEnd;
     const { [id]: ______, ...restStep } = genStep;
+    const { [id]: _______, ...restFunc } = genFunc;
     setRawValues(restRaw);
     setErrors(restErr);
     setUseGenerator(restUseGen);
     setGenStart(restStart);
     setGenEnd(restEnd);
     setGenStep(restStep);
+    setGenFunc(restFunc);
   };
 
   const updateParameterField = (id: string, field: keyof Parameter, value: any) => {
@@ -93,15 +97,33 @@ export default function SpecForm() {
     const s = parseFloat(genStart[id]);
     const e = parseFloat(genEnd[id]);
     const st = parseFloat(genStep[id]);
+    const funcStr = genFunc[id];
 
-    if (isNaN(s) || isNaN(e) || isNaN(st) || st <= 0) {
+    if (isNaN(s) || isNaN(e) || (isNaN(st) && !funcStr) || (st <= 0 && !funcStr)) {
       handleToast("Invalid start/end/step", "error");
       return;
     }
 
     const list: number[] = [];
-    for (let v = s; v <= e + 1e-9; v += st) {
-      list.push(Math.round(v * 1e12) / 1e12);
+
+    try {
+      if (funcStr) {
+        // Create a safe function with x
+        const f = new Function("x", `"use strict"; return (${funcStr});`);
+        const points = st > 0 ? Math.ceil((e - s) / st) : 100;
+        const step = (e - s) / points;
+        for (let x = s; x <= e + 1e-9; x += step) {
+          const val = f(x);
+          if (typeof val === "number" && !isNaN(val)) list.push(val);
+        }
+      } else {
+        for (let v = s; v <= e + 1e-9; v += st) {
+          list.push(Math.round(v * 1e12) / 1e12);
+        }
+      }
+    } catch (err) {
+      handleToast("Invalid function: " + err, "error");
+      return;
     }
 
     setRawValues({ ...rawValues, [id]: list.join(",") });
@@ -109,42 +131,36 @@ export default function SpecForm() {
     setErrors({ ...errors, [id]: "" });
   };
 
-const handleSave = async () => {
-  // Check global fields first
-  if (!name.trim()) {
-    handleToast("Name is required", "error");
-    return;
-  }
-  if (!description.trim()) {
-    handleToast("Description is required", "error");
-    return;
-  }
-  if (parameters.length === 0) {
-    handleToast("At least one parameter is required", "error");
-    return;
-  }
 
-  // Check each parameter
-  for (const p of parameters) {
-    if (!p.values || p.values.length === 0) {
-      handleToast(`Parameter "${p.key}" has no values`, "error");
+  const handleSave = async () => {
+    if (!name.trim()) {
+      handleToast("Name is required", "error");
       return;
     }
-  }
+    if (!description.trim()) {
+      handleToast("Description is required", "error");
+      return;
+    }
+    if (parameters.length === 0) {
+      handleToast("At least one parameter is required", "error");
+      return;
+    }
 
-  // Prepare spec
-  const spec = { name, description, parameters };
+    for (const p of parameters) {
+      if (!p.values || p.values.length === 0) {
+        handleToast(`Parameter "${p.key}" has no values`, "error");
+        return;
+      }
+    }
 
-  // Save via backend utility
-  const saved = await saveSpec(spec, handleToast);
+    const spec = { name, description, parameters };
+    const saved = await saveSpec(spec, handleToast);
 
-  if (!saved) return; // saveSpec already shows toast on error
+    if (!saved) return;
 
-  // Update local state/UI if save succeeded
-  setSpecJson(saved);
-  setLoadedConfigs([saved]);
-};
-
+    setSpecJson(saved);
+    setLoadedConfigs([saved]);
+  };
 
   return (
     <Paper sx={{ p: 2 }}>
@@ -216,27 +232,34 @@ const handleSave = async () => {
             </Box>
 
             {useGenerator[p.id] && (
-              <Box sx={{ display: "flex", gap: 1, mt: 1, width: "100%" }}>
+              <Box sx={{ display: "flex", gap: 1, mt: 1, width: "100%", flexWrap: "wrap" }}>
                 <TextField
                   label="Start"
                   type="number"
                   value={genStart[p.id] || ""}
                   onChange={(e) => setGenStart({ ...genStart, [p.id]: e.target.value })}
-                  fullWidth
+                  sx={{ width: 100 }}
                 />
                 <TextField
                   label="End"
                   type="number"
                   value={genEnd[p.id] || ""}
                   onChange={(e) => setGenEnd({ ...genEnd, [p.id]: e.target.value })}
-                  fullWidth
+                  sx={{ width: 100 }}
                 />
                 <TextField
                   label="Step"
                   type="number"
                   value={genStep[p.id] || ""}
                   onChange={(e) => setGenStep({ ...genStep, [p.id]: e.target.value })}
-                  fullWidth
+                  sx={{ width: 100 }}
+                />
+                <TextField
+                  label="Function (x => ...)"
+                  value={genFunc[p.id] || ""}
+                  onChange={(e) => setGenFunc({ ...genFunc, [p.id]: e.target.value })}
+                  sx={{ width: 200 }}
+                  placeholder="e.g., Math.sin(x)"
                 />
                 <Button variant="outlined" onClick={() => generateList(p.id)}>
                   Gen
