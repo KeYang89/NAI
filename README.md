@@ -66,7 +66,6 @@ param-sweep-configurator/
 │  │  ├─ main.py
 │  │  ├─ models.py
 │  │  └─ storage.py
-│  └─ README.md
 ├─ frontend/
 │  ├─ screenshots/
 │  ├─ package.json
@@ -139,8 +138,45 @@ npm run dev
 React frontend runs at http://localhost:5173
 
 
+
+# Run test
+
+```bash
+
+cd param-sweep-configurator-app/tests/
+
+
+# Install for backend
+cd /backend 
+pip3 install -r tests/requirements.txt
+
+
+# Install for frontend
+cd /frontend
+npm install
+npm install --save-dev @testing-library/react @testing-library/jest-dom @testing-library/user-event jest jest-environment-jsdom @types/jest
+
+# Run all tests
+chmod +x run-tests.sh
+./run-tests.sh
+
+# Backend only
+chmod +x run-backend-tests.sh
+./run-backend-tests.sh
+
+# Frontend only  
+chmod +x run-frontend-tests.sh
+./run-frontend-tests.sh
+
+```
+
 # Notes
 
 This app uses Redis to persist results.
 
 WebSocket setup in this app is for streaming progress updates for long-running jobs, display the progress to multiple users, but not for collaborative editing. Each time a user creates a new spec, the backend generates a unique UUID. The WebSocket is tied to that ID and streams progress updates for that specific job.
+
+
+# TO-DO
+
+CI/CD and auto testing

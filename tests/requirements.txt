@@ -1,0 +1,9 @@
+pytest
+pytest-asyncio
+httpx
+pytest-mock
+fakeredis
+redis
+fastapi
+uvicorn
+pydantic

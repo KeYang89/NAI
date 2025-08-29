@@ -104,6 +104,7 @@ export default function UploadJSON({ onLoad, onSave }: UploadJSONProps) {
         ref={fileInputRef}
         style={{ display: 'none' }}
         onChange={handleFileChange}
+        data-testid="file-input"
       />
     </Paper>
   );
