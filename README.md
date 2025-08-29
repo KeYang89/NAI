@@ -58,7 +58,7 @@ parameters: list of variables to sweep. Each has:
 # Structure
 
 ```
-param-sweep-configurator/
+NAI/
 ├─ backend/
 │  ├─ screenshots/
 │  ├─ requirements.txt
@@ -72,6 +72,8 @@ param-sweep-configurator/
 │  ├─ tsconfig.json
 │  ├─ vite.config.ts
 │  └─ src/
+│     ├─ __tests__/...
+│     ├─ __mocks__/...
 │     ├─ main.tsx
 │     ├─ App.tsx
 │     ├─ utils/
@@ -84,7 +86,10 @@ param-sweep-configurator/
 │     │  └─ ProgressBar.tsx
 │     └─ styles.css
 ├─ config/.env.shared
-└─ README.md
+├─ tests
+│   └─ backend/...
+├─ README.md
+└─ ...shell files...
 ```
 
 
